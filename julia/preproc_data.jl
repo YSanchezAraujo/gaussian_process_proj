@@ -2,18 +2,18 @@ using MAT;
 using StatsBase, LinearAlgebra;
 
 struct SpikeInfo 
-	isi::Array{Float64, 1}
-	h::Histogram
-	bins::Array{Float64, 1}
-	f::Float64
-	p::Array{Float64, 1}
+    isi::Array{Float64, 1}
+    h::Histogram
+    bins::Array{Float64, 1}
+    f::Float64
+    p::Array{Float64, 1}
 end
 
 function compute_spike_info(data_path::String, key::String, bin_size::Float64)
     data_dict = matread(data_path)
     spike_times = data_dict[key]
     if length(size(spike_times)) == 2 && size(spike_times, 2) == 1
-    	spike_times = dropdims(spike_times; dims=2)
+        spike_times = dropdims(spike_times; dims=2)
     end
     total_time = ceil(maximum(spike_times))
     isi = diff(spike_times)
@@ -29,12 +29,12 @@ nanmean(x, dim) = mapslices(nanmean, x, dims=dim)
 binindices(edges, data) = searchsortedlast.(Ref(edges), data)
 
 function avg_by_index(data, index)
-	avgs = zeros(Float64, maximum(index))
-	for (k, s) in enumerate(unique(index))
-		idx = index .== s
-		avgs[k] = mean(data[idx])
-	end
-	return avgs
+    avgs = zeros(Float64, maximum(index))
+    for (k, s) in enumerate(unique(index))
+        idx = index .== s
+        avgs[k] = mean(data[idx])
+    end
+    return avgs
 end
 
 """
