@@ -4,3 +4,7 @@ include(joinpath(base_dir, "gp_inference.jl"));
 
 nsteps, x_bias, y_bias, noise_level = 1000, 0.2, -0.7, 1.
 sim_info = sim_data(nsteps, x_bias, y_bias, noise_level)
+
+f, lml, L, W, a  = estimate_laplace_gp(sim_info.K, Float64.(sim_info.y))
+
+# will finish this tomorrow

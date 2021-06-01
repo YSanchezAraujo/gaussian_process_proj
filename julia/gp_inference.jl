@@ -1,3 +1,6 @@
+using Distributions;
+using LinearAlgebra;
+
 function drop_singleton(a)
     dropdims(a, dims = (findall(size(a) .== 1)...,))
 end
@@ -20,7 +23,7 @@ end
 
 # second derivative of log[p(y|f)]
 function d2df_log_poisson_pmf(f::Array{Float64, 1})
-    np_f, np_y = size(f)
+    np_f = size(f, 1)
     f = length(np_f) > 1 ? drop_singleton(f) : f
     return diagm(-exp.(f))
 end
