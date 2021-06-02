@@ -2,6 +2,7 @@ using Distributions;
 using LinearAlgebra;
 using Distances;
 using KernelFunctions;
+using Optim;
 
 function drop_singleton(a)
     dropdims(a, dims = (findall(size(a) .== 1)...,))
@@ -57,6 +58,38 @@ function estimate_laplace_gp(K, y, tol=1e-3)
     end
     return f, log_yxt
 end
+
+sqexpkernel(alpha::Real, rho::Real) = alpha^2 * transform(SqExponentialKernel(), 1/(rho*sqrt(2)))
+
+function estimate_laplace_gp_opt(kernel_params, X, y, tol=1e-3)
+    K = kernelmatrix(sqexpkernel(kernel_params...), X')
+    n, c = length(y), 1
+    f, I_n = zeros(n), I(n)
+    W = -d2df_log_poisson_pmf(f)
+    Wsqr = sqrt(W)
+    L = Matrix(cholesky(Symmetric(I_n + Wsqr * K * Wsqr)).L)
+    b = W * f + ddf_log_poisson_pmf(f, y)
+    a = b - Wsqr * (L' \ (L \ (Wsqr * K * b)))
+    obj_cmp = -0.5 * a'f + sum(log_poisson_pmf(f, y))
+    f = K * a
+    obj_new = -0.5 * a'f + sum(log_poisson_pmf(f, y))
+    log_yxt = obj_new - sum(log.(diag(L)))
+    while abs(obj_new - obj_cmp) > tol
+        W = -d2df_log_poisson_pmf(f)
+        Wsqr = sqrt(W)
+        L = Matrix(cholesky(Symmetric(I_n + Wsqr * K  * Wsqr)).L)
+        b = W * f + ddf_log_poisson_pmf(f, y)
+        a = b - Wsqr * (L' \ (L \ (Wsqr * K * b)))
+        obj_cmp = -0.5 * a'f + sum(log_poisson_pmf(f, y))
+        f = K * a
+        obj_new = -0.5 * a'f + sum(log_poisson_pmf(f, y))
+        log_yxt = obj_new - sum(log.(diag(L)))
+    end
+    return -log_yxt
+end
+
+estimate_gp_params(params, X, y)  = optimize(w -> estimate_laplace_gp_opt(w, X, y), params, BFGS())
+
 
 # these two below work on a per test-input basis
 # need to double check this

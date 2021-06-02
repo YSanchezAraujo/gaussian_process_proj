@@ -10,12 +10,13 @@ n_train = Int64(floor(0.75*nsteps))
 X_train, y_train = sim_info.X[1:n_train, :], sim_info.y[1:n_train]
 X_test, y_test = sim_info.X[n_train+1:end, :], sim_info.y[n_train+1:end]
 
+# this might not work just yet
+opts = estimate_gp_params([0.2, 0.2], X_train, Float64.(y_train))
+
 using Distances;
 using KernelFunctions;
 
 alpha, rho = sim_info.alpha, sim_info.rho
-sqexpkernel(alpha::Real, rho::Real) = alpha^2 * transform(SqExponentialKernel(), 1/(rho*sqrt(2)))
-
 kernel = sqexpkernel(alpha, rho)
 K_XX = kernelmatrix(kernel, X_train')
 K_XXS = kernelmatrix(kernel, X_train', X_test')
