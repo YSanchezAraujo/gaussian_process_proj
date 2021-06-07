@@ -23,7 +23,7 @@ function make_xy(x, y, x_mu, y_mu, sigma, bx_left, bx_right, by_down, by_up, lr_
     return xy
 end
 
-sqexpkernel(alpha::Real, rho::Real) = alpha^2 * transform(SqExponentialKernel(), 1/(rho*sqrt(2)))
+sqexpkernel(alpha::Real, rho::Real) = alpha^2 * compose(SqExponentialKernel(), ScaleTransform(1/(rho^2)))
 
 struct GPSIM
     X::Array{Float64, 2}
@@ -42,17 +42,16 @@ function sim_data(nsteps, x_bias, y_bias, noise_level)
     X = make_xy(0.6, -0.8,  x_bias, y_bias, noise_level, 
                 bx_left, bx_right, by_down, by_up, lr_lr, lr_ud, nsteps)
     # parameters for the kernel
-    alpha =rand(LogNormal(0.0, 0.1))
-    rho = rand(LogNormal(1.0, 1.0))
+    #alpha = rand(LogNormal(0.0, 0.1))
+    #rho = rand(LogNormal(1.0, 1.0))
+    alpha, rho = 1.1, 0.3
     kernel = sqexpkernel(alpha, rho)
     # generate kernel
     K = kernelmatrix(kernel, X')
     m = size(K, 1)
-    sig2 = 1.
-    K = K + I(m) * sig2
+    K = K + I(m) * 1e-6 # to make it positive semi definite 
     # and sample a function for the firing rate
-    f = MvNormal(zeros(m), K)
-    f_sampled = rand(f)
+    f_sampled = rand(MvNormal(zeros(m), K))
     # now sample spikes from f_sampled
     y = rand.(Poisson.(exp.(f_sampled)))
     return GPSIM(X, y, f_sampled, K, rho, alpha)
