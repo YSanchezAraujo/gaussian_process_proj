@@ -57,7 +57,7 @@ function estimate_laplace_gp(K, y, tol=1e-3, maxIter=35)
         c += 1
     end
     # run it a final time for prediction
-    w, Wsqr, L, a, b = gp_comps(f, y, K, I_n)
+    W, Wsqr, L, a, b = gp_comps(f, y, K, I_n)
     return f, L, W, Wsqr, log_yxt
 end
 
@@ -85,9 +85,7 @@ end
 function predict_laplace_gp(f_hat, y, K, K_new, k_star)
     n = length(y)
     I_n = I(n)
-    W = -d2df_log_poisson_pmf(f_hat)
-    Wsqr = sqrt(W)
-    L = Matrix(cholesky(Symmetric(I_n + Wsqr * K * Wsqr)).L)
+    W, Wsqr, L, a, b = gp_comps(f_hat, y, K, I_n)
     f_new = k_star'ddf_log_poisson_pmf(f_hat, y)
     #v = L \ (Wsqr * k_star)
     #var_f_new = K_new - v'v
