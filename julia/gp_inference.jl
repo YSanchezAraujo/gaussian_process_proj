@@ -31,24 +31,25 @@ function d2df_log_poisson_pmf(f::Array{Float64, 1})
     return diagm(-exp.(f))
 end
 
-function estimate_laplace_gp(K, y, tol=1e-3, maxIter=35)
-    n, c = length(y), 1
-    f, I_n = zeros(n), I(n)
+function gp_comps(f, y, K, I_n)
     W = -d2df_log_poisson_pmf(f)
     Wsqr = sqrt(W)
     L = Matrix(cholesky(Symmetric(I_n + Wsqr * K * Wsqr)).L)
     b = W * f + ddf_log_poisson_pmf(f, y)
     a = b - Wsqr * (L' \ (L \ (Wsqr * K * b)))
+    return W, Wsqr, L, a, b
+end
+
+function estimate_laplace_gp(K, y, tol=1e-3, maxIter=35)
+    n, c = length(y), 1
+    f, I_n = zeros(n), I(n)
+    W, Wsqr, L, a, b = gp_comps(f, y, K, I_n)
     obj_cmp = -0.5 * a'f + sum(log_poisson_pmf(f, y))
     f = K * a
     obj_new = -0.5 * a'f + sum(log_poisson_pmf(f, y))
     log_yxt = obj_new - sum(log.(diag(L)))
     while abs(obj_new - obj_cmp) > tol && c < maxIter
-        W = -d2df_log_poisson_pmf(f)
-        Wsqr = sqrt(W)
-        L = Matrix(cholesky(Symmetric(I_n + Wsqr * K  * Wsqr)).L)
-        b = W * f + ddf_log_poisson_pmf(f, y)
-        a = b - Wsqr * (L' \ (L \ (Wsqr * K * b)))
+        W, Wsqr, L, a, b = gp_comps(f, y, K, I_n)
         obj_cmp = -0.5 * a'f + sum(log_poisson_pmf(f, y))
         f = K * a
         obj_new = -0.5 * a'f + sum(log_poisson_pmf(f, y))
@@ -56,41 +57,12 @@ function estimate_laplace_gp(K, y, tol=1e-3, maxIter=35)
         c += 1
     end
     # run it a final time for prediction
-    W = -d2df_log_poisson_pmf(f)
-    Wsqr = sqrt(W)
-    L = Matrix(cholesky(Symmetric(I_n + Wsqr * K  * Wsqr)).L)
+    w, Wsqr, L, a, b = gp_comps(f, y, K, I_n)
     return f, L, W, Wsqr, log_yxt
 end
 
 sqexpkernel(alpha::Real, rho::Real) = alpha^2 * compose(SqExponentialKernel(), ScaleTransform(1/(rho^2)))
 
-
-# function estimate_laplace_gp_opt(kernel_params, X, y, tol=1e-3)
-#     K = kernelmatrix(sqexpkernel(kernel_params...), X')
-#     n, c = length(y), 1
-#     f, I_n = zeros(n), I(n)
-#     W = -d2df_log_poisson_pmf(f)
-#     Wsqr = sqrt(W)
-#     L = Matrix(cholesky(Symmetric(I_n + Wsqr * K * Wsqr)).L)
-#     b = W * f + ddf_log_poisson_pmf(f, y)
-#     a = b - Wsqr * (L' \ (L \ (Wsqr * K * b)))
-#     obj_cmp = -0.5 * a'f + sum(log_poisson_pmf(f, y))
-#     f = K * a
-#     obj_new = -0.5 * a'f + sum(log_poisson_pmf(f, y))
-#     log_yxt = obj_new - sum(log.(diag(L)))
-#     while abs(obj_new - obj_cmp) > tol
-#         W = -d2df_log_poisson_pmf(f)
-#         Wsqr = sqrt(W)
-#         L = Matrix(cholesky(Symmetric(I_n + Wsqr * K  * Wsqr)).L)
-#         b = W * f + ddf_log_poisson_pmf(f, y)
-#         a = b - Wsqr * (L' \ (L \ (Wsqr * K * b)))
-#         obj_cmp = -0.5 * a'f + sum(log_poisson_pmf(f, y))
-#         f = K * a
-#         obj_new = -0.5 * a'f + sum(log_poisson_pmf(f, y))
-#         log_yxt = obj_new - sum(log.(diag(L)))
-#     end
-#     return -log_yxt
-# end
 
 function estimate_laplace_gp_opt(kernel_params, X, y, tol=1e-3)
     K = kernelmatrix(sqexpkernel(kernel_params...), X')
